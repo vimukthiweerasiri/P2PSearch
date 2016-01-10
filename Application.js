@@ -20,7 +20,9 @@ var config = { fileNames:[
     'American Idol',
     'Hacking for Dummies'],
     minFilesPerNode: 3,
-    maxFilesPerNode: 5
+    maxFilesPerNode: 5,
+    bootstrapIP: '127.0.0.1',
+    bootstrapPORT: 12345
 }
 
 var TCP = require('net');
@@ -53,6 +55,76 @@ nodeFiles.forEach(function (elem) {
 var searchInNode = function (fileName) {
     return fileMap.fileName;
 }
+
+
+
+
+///////////////////////////// decoding
+
+
+/*
+ * Decodes any message received from the boot strap server
+ * Input: a string (eg: length REGOK no_nodes IP_1 port_1 IP_2 port_2 )
+ * Output fofrmat: a dictionary
+ */
+var decodeResponse = function(strmsg) {
+    var arrmsg = strmsg.split(" ");
+    var dict = {};
+    dict['type'] = arrmsg[1];
+    dict['ID'] = parseInt(arrmsg[2], 10);
+    if(dict.type == "REGOK"){
+        if( dict.ID >= 1 && dict.ID <= 9995){
+            var IPs = [];
+            var ports = [];
+            for(i = 0; i < dict.ID; i++){
+                IPs[i] = arrmsg[3+(i*2)];
+                ports[i] = arrmsg[4+(i*2)];
+            }
+            dict['IPs'] = IPs;
+            dict['port'] = ports;
+        }
+    }
+    else if(dict.type == "SEROK"){
+
+    }
+    return dict;
+};
+
+/*
+ * Encodes in to a message to Bootstrap server
+ * Input: all strings (port can be a number)
+ * Output: a string (eg: length UNREG IP_address port_no username)
+ */
+var encodeMessage = function(type, IP, port, arg1, arg2){
+    var space  = " "
+    var spaces;
+    if(typeof port == 'number')
+        port = port.toString();
+    var msg;
+    if (arg1 && arg2){
+        spaces = 5;
+        var msglen = 4 + spaces + type.length + IP.length + port.length + arg1.length + arg2.length;
+        msg = type + space + IP + space + port + space + arg1 + space + arg2;
+    }
+    else if(arg1){
+        spaces = 4;
+        var msglen = 4 + spaces + type.length + IP.length + port.length + arg1.length;
+        msg = type + space + IP + space + port + space + arg1;
+    }
+    else{
+        spaces = 3;
+        var msglen = 4 + spaces + type.length + IP.length + port.length;
+        msg = type + space + IP + space + port;
+    }
+
+    var strmsg = msglen.toString();
+    while(strmsg.length < 4)
+        strmsg = "0".concat(strmsg);
+    var ret = strmsg.concat(space, msg);
+    return ret;
+}
+
+//////////////////////////////////////
 
 console.log("Node started at " + HOST + ':' + PORT);
 
@@ -108,6 +180,16 @@ var sendUDPmessage = function (UDPcon, text, sendUDPIP, sendUDPPort) {
     });
 };
 
-sendTCPmessage('127.0.0.1', 12345, '0036 REG 127.0.0.1 '+PORT+' ' + USERNAME, function(err, data){
-    console.log(String(data));
-});
+//sendTCPmessage('127.0.0.1', 12345, '0036 REG 127.0.0.1 '+PORT+' ' + USERNAME, function(err, data){
+//    console.log(String(data));
+//});
+
+var register = function(ip, port){
+    var cmd = encodeMessage('REG', HOST, PORT, USERNAME);
+    sendTCPmessage(config.bootstrapIP, config.bootstrapPORT, cmd, function(err, data){
+       var response = decodeResponse(String(data));
+        console.log(response);
+    });
+}
+
+register(HOST, PORT);
