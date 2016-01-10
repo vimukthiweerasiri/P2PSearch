@@ -76,12 +76,15 @@ var decodeResponse = function(strmsg) {
         if( dict.ID >= 1 && dict.ID <= 9995){
             var IPs = [];
             var ports = [];
+            var userNames = [];
             for(i = 0; i < dict.ID; i++){
-                IPs[i] = arrmsg[3+(i*2)];
-                ports[i] = arrmsg[4+(i*2)];
+                IPs[i] = arrmsg[3+(i*3)];
+                ports[i] = arrmsg[4+(i*3)];
+                userNames[i] = arrmsg[5+(i*3)];
             }
             dict['IPs'] = IPs;
             dict['port'] = ports;
+            dict['userNames'] = userNames;
         }
     }
     else if(dict.type == "SEROK"){
