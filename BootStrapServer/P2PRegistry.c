@@ -15,6 +15,7 @@
 #include <string.h>
 #include "P2PRegistry.h"
 #include <netdb.h>
+#include <unistd.h>
 
 
 struct table_entry peer_table[TABLE_SIZE];
@@ -272,7 +273,7 @@ void receivedata(int sockfd)
  *------------------------------------------------------------------------------------------------------------------*/
 int sendpeerlist(int sockfd, char key[8])
 {
-    char message[1000], tmpmsg[100], tmpmsglen[4];
+    char message[1000], tmpmsg[100], tmpmsglen[5];
     int msglen, numbytessend, retvalue, i, j;
     msglen = numbytessend = 0;
 
