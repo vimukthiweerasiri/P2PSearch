@@ -8,20 +8,17 @@ var decodeResponse = function(strmsg) {
     var arrmsg = strmsg.split(" ");
     var dict = {};
     dict['type'] = arrmsg[1];
-    if(1 == arrmsg[2]){
-    	dict['ID'] = arrmsg[2];
-    	dict['IP_1'] = arrmsg[3];
-    	dict['port_1'] = arrmsg[4];
+    dict['ID'] = parseInt(arrmsg[2], 10);
+    if(dict.type == "REGOK" || dict.type == "UNROK"){
+        if( dict.ID >= 1 && dict.ID <= 9995){
+            for(i = 1; i <= dict.ID; i++){
+                dict['IP_'+i] = arrmsg[2+i];
+                dict['port_'+i] = arrmsg[3+i];
+            }
+        }   
     }
-    else if(2 == arrmsg[2]){
-    	dict['ID'] = arrmsg[2];
-    	dict['IP_1'] = arrmsg[3];
-    	dict['port_1'] = arrmsg[4];
-    	dict['IP_2'] = arrmsg[5];
-    	dict['port_2'] = arrmsg[6];
-    }
-    else{
-    	dict['ID'] = arrmsg[2];
+    else if(dict.type == "SEROK"){
+
     }
     return dict;
 };
@@ -31,16 +28,29 @@ var decodeResponse = function(strmsg) {
  * Input: all strings
  * Output: a string (eg: length UNREG IP_address port_no username)
  */
-var encodeMessage = function(type, IP, port, username){
+var encodeMessage = function(type, IP, port, arg1, arg2){
 	var space  = " "
-	var spaces = 4;
-	var msglen = 4 + spaces + type.length + IP.length + port.length + username.length;
+	var spaces;
+    var msg;
+    if (arg1 && arg2){
+        spaces = 5;
+        var msglen = 4 + spaces + type.length + IP.length + port.length + arg1.length + arg2.length;
+        msg = type + space + IP + space + port + space + arg1 + space + arg2;
+    }
+    else if(arg1){
+        spaces = 4;
+        var msglen = 4 + spaces + type.length + IP.length + port.length + arg1.length;
+        msg = type + space + IP + space + port + space + arg1;
+    }
+    else{
+        spaces = 3;
+        var msglen = 4 + spaces + type.length + IP.length + port.length;
+        msg = type + space + IP + space + port;
+    }
+	
 	var strmsg = msglen.toString();
 	while(strmsg.length < 4)
 		strmsg = "0".concat(strmsg);
-	var ret = strmsg.concat(space, type, space, IP, space, port, space,username);
+	var ret = strmsg.concat(space, msg);
 	return ret;
 }
-
-
-
