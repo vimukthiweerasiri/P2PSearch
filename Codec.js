@@ -9,12 +9,16 @@ var decodeResponse = function(strmsg) {
     var dict = {};
     dict['type'] = arrmsg[1];
     dict['ID'] = parseInt(arrmsg[2], 10);
-    if(dict.type == "REGOK" || dict.type == "UNROK"){
+    if(dict.type == "REGOK"){
         if( dict.ID >= 1 && dict.ID <= 9995){
-            for(i = 1; i <= dict.ID; i++){
-                dict['IP_'+i] = arrmsg[2+i];
-                dict['port_'+i] = arrmsg[3+i];
+            var IPs = [];
+            var ports = [];
+            for(i = 0; i < dict.ID; i++){
+                IPs[i] = arrmsg[3+(i*2)];
+                ports[i] = arrmsg[4+(i*2)];
             }
+            dict['IPs'] = IPs;
+            dict['port'] = ports;
         }   
     }
     else if(dict.type == "SEROK"){
@@ -25,12 +29,14 @@ var decodeResponse = function(strmsg) {
 
 /*
  * Encodes in to a message to Bootstrap server 
- * Input: all strings
+ * Input: all strings (port can be a number)
  * Output: a string (eg: length UNREG IP_address port_no username)
  */
 var encodeMessage = function(type, IP, port, arg1, arg2){
 	var space  = " "
 	var spaces;
+    if(typeof port == 'number')
+        port = port.toString();
     var msg;
     if (arg1 && arg2){
         spaces = 5;
