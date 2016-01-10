@@ -1,10 +1,11 @@
 var TCP = require('net');
 var UDP = require('dgram').createSocket('udp4');
 var HOST = '127.0.0.1';
-var PORT = 33333;
+var PORT = parseInt(process.argv[2]);
+var USERNAME = process.argv[3];
 
 /////////////// servers ///////////////
-// TCP UDP
+// TCP Server
 TCP.createServer(function(sock) {
     sock.on('data', function(message) {
         console.log(sock.remoteAddress +':'+ sock.remotePort + ':TCP>> ' + message);
@@ -49,6 +50,6 @@ var sendUDPmessage = function (UDPcon, text, sendUDPIP, sendUDPPort) {
     });
 };
 
-sendTCPmessage('127.0.0.1', 12345, '0036 REG 123.82.123.49 4301 1944abcd', function(err, data){
+sendTCPmessage('127.0.0.1', 12345, '0036 REG 127.0.0.1 '+PORT+' ' + USERNAME, function(err, data){
     console.log(String(data));
 });
