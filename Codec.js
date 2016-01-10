@@ -8,7 +8,11 @@ var decodeResponse = function(strmsg) {
     var arrmsg = strmsg.split(" ");
     var dict = {};
     dict['type'] = arrmsg[1];
-    dict['ID'] = parseInt(arrmsg[2], 10);
+    
+    // JOIN does not have a ID
+    if(dict.type != "JOIN")
+        dict['ID'] = parseInt(arrmsg[2], 10);
+
     if(dict.type == "REGOK"){
         if( dict.ID >= 1 && dict.ID <= 9995){
             var IPs = [];
@@ -23,6 +27,10 @@ var decodeResponse = function(strmsg) {
             dict['port'] = ports;
             dict['userNames'] = userNames;
         }
+    }
+    else if(dict.type == "JOIN"){
+        dict['IP'] = arrmsg[2];
+        dict['port'] = arrmsg[3];
     }
     else if(dict.type == "SEROK"){
 
@@ -63,3 +71,6 @@ var encodeMessage = function(type, IP, port, arg1, arg2){
 	var ret = strmsg.concat(space, msg);
 	return ret;
 }
+
+console.log(decodeResponse("0027 JOIN 64.12.123.190 432"));
+console.log(decodeResponse("0051 REGOK 2 129.82.123.45 5001 dinal 64.12.123.190 34001 vimul"));
