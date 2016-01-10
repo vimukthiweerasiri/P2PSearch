@@ -71,6 +71,3 @@ var encodeMessage = function(type, IP, port, arg1, arg2){
 	var ret = strmsg.concat(space, msg);
 	return ret;
 }
-
-console.log(decodeResponse("0027 JOIN 64.12.123.190 432"));
-console.log(decodeResponse("0051 REGOK 2 129.82.123.45 5001 dinal 64.12.123.190 34001 vimul"));
