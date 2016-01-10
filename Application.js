@@ -29,6 +29,7 @@ var HOST = '127.0.0.1';
 var PORT = parseInt(process.argv[2]);
 var USERNAME = process.argv[3];
 var ALLFILES = config.fileNames;
+var ROUTINGTABLE = {'dummy':'variable'};
 
 function shuffle(o){
     for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
@@ -38,12 +39,34 @@ function shuffle(o){
 var fileCount = Math.round(Math.random() * (config.maxFilesPerNode - config.minFilesPerNode) + config.minFilesPerNode);
 var nodeFiles = shuffle(ALLFILES).slice(0, fileCount);
 
+var fileMap = {};
+nodeFiles.forEach(function (elem) {
+    var tmpstr = elem;
+    var strArr = tmpstr.split(" ");
+    var temp = "";
+    for(var i = 0; i < strArr.length; i++){
+        temp += (i == 0 ? "" : " ")+strArr[i].toLowerCase();
+        fileMap[temp] = elem;
+    }
+});
+
+var searchInNode = function (fileName) {
+    return fileMap.fileName;
+}
+
+console.log("Node started at " + HOST + ':' + PORT);
 
 /////////////// servers ///////////////
 // TCP Server
 TCP.createServer(function(sock) {
     sock.on('data', function(message) {
         console.log(sock.remoteAddress +':'+ sock.remotePort + ':TCP>> ' + message);
+        var cmd = String(message);
+        // taking substring here than matching to avoid C-R etc;
+
+        if(cmd.indexOf("DEBUG P RT") > -1){
+            console.log(ROUTINGTABLE);
+        }
         sock.write('got that too');
         //sendTCPmessage(TCP, sock.remoteAddress, sock.remotePort, 'rogger that too');
     });
