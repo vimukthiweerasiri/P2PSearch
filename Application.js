@@ -1,8 +1,43 @@
+var config = { fileNames:[
+    'Adventures of Tintin',
+    'Jack and Jill',
+    'Glee',
+    'The Vampire Diarie',
+    'King Arthur',
+    'Windows XP',
+    'Harry Potter',
+    'Kung Fu Panda',
+    'Lady Gaga',
+    'Twilight',
+    'Windows 8',
+    'Mission Impossible',
+    'Turn Up The Music',
+    'Super Mario',
+    'American Pickers',
+    'Microsoft Office 2010',
+    'Happy Feet',
+    'Modern Family',
+    'American Idol',
+    'Hacking for Dummies'],
+    minFilesPerNode: 3,
+    maxFilesPerNode: 5
+}
+
 var TCP = require('net');
 var UDP = require('dgram').createSocket('udp4');
 var HOST = '127.0.0.1';
 var PORT = parseInt(process.argv[2]);
 var USERNAME = process.argv[3];
+var ALLFILES = config.fileNames;
+
+function shuffle(o){
+    for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+    return o;
+}
+
+var fileCount = Math.round(Math.random() * (config.maxFilesPerNode - config.minFilesPerNode) + config.minFilesPerNode);
+var nodeFiles = shuffle(ALLFILES).slice(0, fileCount);
+
 
 /////////////// servers ///////////////
 // TCP Server
