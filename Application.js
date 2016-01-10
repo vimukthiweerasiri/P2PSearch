@@ -1,25 +1,54 @@
-/**
- * Created by vimukthi on 1/10/16.
- */
-var net = require('net');
+var TCP = require('net');
+var UDP = require('dgram').createSocket('udp4');
 var HOST = '127.0.0.1';
-var PORT = 6969;
-var TCPServer = null;
+var PORT = 33333;
 
-net.createServer(function (sock) {
-    TCPServer = sock;
-    console.log('CONNECTED: ' + sock.remoteAddress + ':' + sock.remotePort);
-    sock.on('data', function (data) {
-        console.log('DATA ' + sock.remoteAddress + ': ' + data);
-        sock.write('You said "' + data + '"');
+/////////////// servers ///////////////
+// TCP UDP
+TCP.createServer(function(sock) {
+    sock.on('data', function(message) {
+        console.log(sock.remoteAddress +':'+ sock.remotePort + ':TCP>> ' + message);
+        sock.write('got that too');
+        //sendTCPmessage(TCP, sock.remoteAddress, sock.remotePort, 'rogger that too');
     });
-
-    sock.on('close', function (data) {
-        console.log('CLOSED: ' + sock.remoteAddress + ' ' + sock.remotePort);
-    });
-
 }).listen(PORT, HOST);
 
-console.log('Server listening on ' + HOST + ':' + PORT);
-TCPServer.write('VIMUKTHIJ');
-console.log('came here');
+console.log('Server listening on ' + HOST +':'+ PORT);
+
+// UDP Server
+UDP.on('listening', function () {
+    var address = UDP.address();
+    console.log('UDP Server listening on ' + address.address + ":" + address.port);
+});
+UDP.on('message', function (message, remote) {
+    console.log(remote.address + ':' + remote.port +':UDP>>' + message);
+    sendUDPmessage(UDP, 'roger that UDP', remote.address, remote.port);
+
+});
+UDP.bind(PORT, HOST);
+/////////////// servers ///////////////
+
+var sendTCPmessage = function(sendTCPIP, sendTCPPORT, message, callback){
+    var TCPConnection = new TCP.Socket();
+    TCPConnection.connect(sendTCPPORT, sendTCPIP, function() {
+        TCPConnection.write(message);
+    });
+    TCPConnection.on('data', function(data) {
+        console.log(sendTCPIP + ':' + sendTCPPORT + ':TCP>> ' + data);
+        callback(null, data);
+        TCPConnection.destroy();
+    });
+};
+
+var sendUDPmessage = function (UDPcon, text, sendUDPIP, sendUDPPort) {
+    var message = new Buffer(text);
+    UDPcon.send(message, 0, message.length, sendUDPPort, sendUDPIP, function(err, bytes) {
+        if (err) throw err;
+        console.log('UDP message sent to ' + sendUDPIP +':'+ sendUDPPort);
+        //UDPcon.close();
+    });
+};
+
+sendTCPmessage('127.0.0.1', 12345, '0036 REG 123.82.123.49 4301 1944abcd', function(err, data){
+    console.log(String(data));
+});
