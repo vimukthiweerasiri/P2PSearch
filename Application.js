@@ -1,5 +1,5 @@
 var config = require('./config');
-var codec = require('./Codec');
+var codec = require('./codec');
 var misc = require('./misc');
 var TCP = require('net');
 var UDP = require('dgram').createSocket('udp4');
