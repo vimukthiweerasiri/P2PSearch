@@ -55,8 +55,42 @@ nodeFiles.forEach(function (elem) {
     }
 });
 
-var searchInNode = function (fileName) {
+var printResults = function (incomingMessage, qID) {
+    console.log('--------------');
+    console.log('\x1b[36m', incomingMessage ,'\x1b[0m');
+
+    console.log('--------------');
+}
+
+var handleResult = function (incomingMessage, qID) {
+    var idx = forwardTable.QID.indexOf(qID);
+    console.log(forwardTable);
+    console.log(qID);
+
+    console.log('RESULT to', idx, forwardTable.IP[idx], forwardTable.PORT[idx]);
+    if(forwardTable.PORT[idx] == -1){
+        printResults(incomingMessage, qID);
+    } else{
+        console.log('FORWARDING to', forwardTable.IP[idx], forwardTable.PORT[idx]);
+        sendUDPmessage(UDP, incomingMessage, forwardTable.IP[idx], forwardTable.PORT[idx]);
+    }
+}
+
+var sendResults = function (result, qID) {
+    var noSpace = result.trim().replace(/\s+/g, '_');
+    var cmd = encodeMessage('RESULT', HOST, PORT, qID, noSpace);
+    handleResult(cmd, qID)
+}
+
+var searchInNode = function (fileName, qID) {
     console.log(fileMap[fileName]);
+    if(fileMap[fileName] != null){
+        sendResults(fileMap[fileName], qID);
+        console.log('-----------------');
+        console.log('FOUND ON', HOST, PORT);
+        console.log(fileMap[fileName]);
+        console.log('-----------------');
+    }
 }
 
 
@@ -109,6 +143,11 @@ var decodeResponse = function(strmsg) {
         dict['IPs'] = arrmsg[2];
         dict['port'] = parseInt(arrmsg[3]);
         dict['qID'] = parseInt(arrmsg[4]);
+    } else if(dict.type == "RESULT"){
+        dict['IP'] = arrmsg[2];
+        dict['PORT'] = parseInt(arrmsg[3]);
+        dict['qID'] = parseInt(arrmsg[4]);
+        dict['result'] = parseInt(arrmsg[5]);
     }
     return dict;
 };
@@ -168,7 +207,6 @@ var askNeighbours = function (qID, fileName) {
     });
 }
 
-
 var initSearch = function (term) {
     var qID = new Date().getTime();
     forwardTable.QID.push(qID);
@@ -177,7 +215,7 @@ var initSearch = function (term) {
 
     queryRT[qID] = ROUTINGTABLE;
 
-    searchInNode(term);
+    searchInNode(term, qID);
     askNeighbours(qID, term);
 }
 
@@ -193,7 +231,7 @@ var handleDone = function (qID) {
             var cmd = encodeMessage('DONE', forwardTable.IP[idx], forwardTable.PORT[idx], qID);
             sendUDPmessage(UDP, cmd, forwardTable.IP[idx], forwardTable.PORT[idx]);
         } else {
-            console.log("Search is finished baby");
+            console.log('\x1b[36m', 'SEARCHING IS DONE BABY' ,'\x1b[0m');
         }
 
     }
@@ -237,7 +275,7 @@ var handleSearch = function (ip, port, fileName, qID) {
     //}
 
 
-    searchInNode(fileName);
+    searchInNode(fileName, qID);
     // ask the neighbours
     askNeighbours(qID, fileName);
 }
@@ -304,6 +342,9 @@ UDP.on('message', function (message, remote) {
     }
     if(response.type === 'DONE'){
         handleDone(response.qID);
+    }
+    if(response.type === 'RESULT'){
+        handleResult(cmd, response.qID);
     }
 });
 UDP.bind(PORT, HOST);
