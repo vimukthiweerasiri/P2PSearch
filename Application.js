@@ -32,6 +32,9 @@ var PORT = parseInt(process.argv[2]);
 var USERNAME = process.argv[3];
 var ALLFILES = config.fileNames;
 var ROUTINGTABLE = {IPs:[], PORTs:[]};
+var forwardTable = {QID: [], IP: [], PORT: []};
+var queryRT = {};
+var countDONE = {};
 
 function shuffle(o){
     for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
@@ -53,7 +56,7 @@ nodeFiles.forEach(function (elem) {
 });
 
 var searchInNode = function (fileName) {
-    return fileMap.fileName;
+    console.log(fileMap[fileName]);
 }
 
 
@@ -97,6 +100,15 @@ var decodeResponse = function(strmsg) {
     }
     else if(dict.type == "SEROK"){
 
+    } else if(dict.type == "SER"){
+        dict['IP'] = arrmsg[2];
+        dict['PORT'] = parseInt(arrmsg[3]);
+        dict['fileName'] = arrmsg[4];
+        dict['qID'] = parseInt(arrmsg[5]);
+    } else if(dict.type == "DONE"){
+        dict['IPs'] = arrmsg[2];
+        dict['port'] = parseInt(arrmsg[3]);
+        dict['qID'] = parseInt(arrmsg[4]);
     }
     return dict;
 };
@@ -145,9 +157,93 @@ var addToRT = function (ip, port) {
     ROUTINGTABLE['PORTs'].push(port);
 }
 
-var search = function (term) {
+var askNeighbours = function (qID, fileName) {
+    countDONE[qID] = ROUTINGTABLE['PORTs'].length;
+    var currentRT = queryRT[qID];
+    console.log('sendig table', currentRT);
+    currentRT['IPs'].forEach(function (elem, index) {
+        console.log('SER', elem, currentRT['PORTs'][index], fileName, qID.toString());
+        var cmd = encodeMessage('SER', HOST, PORT, fileName, qID.toString());
+        sendUDPmessage(UDP, cmd, elem, currentRT['PORTs'][index]);
+    });
+}
+
+
+var initSearch = function (term) {
+    var qID = new Date().getTime();
+    forwardTable.QID.push(qID);
+    forwardTable.IP.push('-1');
+    forwardTable.PORT.push(-1);
+
+    queryRT[qID] = ROUTINGTABLE;
+
+    searchInNode(term);
+    askNeighbours(qID, term);
+}
+
+var handleDone = function (qID) {
+    var count = countDONE[qID];
+    countDONE[qID] = count - 1;
+    var idx = forwardTable.QID.indexOf(qID);
+    console.log('GOT DOME', forwardTable.PORT[idx], countDONE[qID]);
+
+    if(countDONE[qID] == 0){
+        if(forwardTable.PORT[idx] != -1){
+            console.log('DONE SENT BY COLLECTING', forwardTable.IP[idx], forwardTable.PORT[idx]);
+            var cmd = encodeMessage('DONE', forwardTable.IP[idx], forwardTable.PORT[idx], qID);
+            sendUDPmessage(UDP, cmd, forwardTable.IP[idx], forwardTable.PORT[idx]);
+        } else {
+            console.log("Search is finished baby");
+        }
+
+    }
 
 }
+
+var handleSearch = function (ip, port, fileName, qID) {
+    // if the query has already come
+
+    if(forwardTable.QID.indexOf(qID) > -1) {
+        console.log('DONE SENT BY BUSY', ip, port, qID);
+        var cmd = encodeMessage('DONE', ip, port, qID);
+        sendUDPmessage(UDP, cmd, ip, port);
+        return;
+    }
+
+    // don't check in predecessor
+    var idxRT;
+    queryRT[qID] = ROUTINGTABLE;
+    var currentRT = queryRT[qID];
+    currentRT['IPs'].forEach(function (elem, index) {
+        if(elem === ip && currentRT['PORTs'][index] === port){
+            idxRT = index;
+        }
+    });
+    currentRT['IPs'].splice(idxRT, 1);
+    currentRT['PORTs'].splice(idxRT, 1);
+
+    // update the forward table
+    forwardTable.QID.push(qID);
+    forwardTable.IP.push(ip);
+    forwardTable.PORT.push(port);
+
+    //if(currentRT['IPs'].length === 0){
+    //    var idx = forwardTable.QID.indexOf(qID);
+    //    if(idx > -1){
+    //        console.log('sending DONE', forwardTable.IP[idx], forwardTable.PORT[idx]);
+    //        var cmd = encodeMessage('DONE', forwardTable.IP[idx], forwardTable.PORT[idx], qID);
+    //        sendUDPmessage(UDP, cmd, forwardTable.IP[idx], forwardTable.PORT[idx]);
+    //    }
+    //}
+
+
+    searchInNode(fileName);
+    // ask the neighbours
+    askNeighbours(qID, fileName);
+}
+
+
+
 /////////////// servers ///////////////
 // TCP Server
 TCP.createServer(function(sock) {
@@ -156,12 +252,22 @@ TCP.createServer(function(sock) {
         var cmd = String(message);
         // taking substring here than matching to avoid C-R etc;
 
+        if(cmd.indexOf("DALL") > -1){
+            console.log('ROUTINGTABLE', ROUTINGTABLE);
+            console.log('nodeFiles', nodeFiles);
+            console.log('forwardTable', forwardTable);
+            console.log('queryRT', queryRT);
+            console.log('fileMap', fileMap);
+        }
+
         if(cmd.indexOf("DEBUG P RT") > -1){
             console.log(ROUTINGTABLE);
         }
         if(cmd.indexOf("DEBUG JOIN") > -1){
             console.log(ROUTINGTABLE);
             var splstr = cmd.split(" ");
+            addToRT(splstr[2], parseInt(splstr[3]));
+            console.log('routing table', ROUTINGTABLE);
             connect(splstr[2], parseInt(splstr[3]));
         }
         if(cmd.indexOf("DEBUG P F") > -1){
@@ -169,7 +275,8 @@ TCP.createServer(function(sock) {
         }
         if(cmd.indexOf("SEARCH ") > -1){
             var searchTerms = cmd.split(" ");
-            search(searchTerms[1]);
+            console.log('searching for: ' + searchTerms[1]);
+            initSearch(searchTerms[1].toLocaleLowerCase().trim());
         }
         sock.write('got that too');
         //sendTCPmessage(TCP, sock.remoteAddress, sock.remotePort, 'rogger that too');
@@ -187,9 +294,17 @@ UDP.on('message', function (message, remote) {
     console.log(remote.address + ':' + remote.port +':UDP>>' + message);
     var cmd = String(message);
     var response = decodeResponse(cmd);
-    if(response.type === 'JOIN')    addToRT(response.IP, response.port);
-    if(response.type === 'SER')
-    console.log(response);
+    if(response.type === 'JOIN')    {
+        addToRT(response.IP, response.port);
+        console.log('routing table', ROUTINGTABLE);
+    }
+    if(response.type === 'SER'){
+        console.log(response);
+        handleSearch(response.IP, response.PORT, response.fileName, response.qID);
+    }
+    if(response.type === 'DONE'){
+        handleDone(response.qID);
+    }
 });
 UDP.bind(PORT, HOST);
 /////////////// servers ///////////////
