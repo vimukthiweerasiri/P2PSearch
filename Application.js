@@ -31,7 +31,7 @@ var HOST = '127.0.0.1';
 var PORT = parseInt(process.argv[2]);
 var USERNAME = process.argv[3];
 var ALLFILES = config.fileNames;
-var ROUTINGTABLE = {'dummy':'variable'};
+var ROUTINGTABLE = {IPs:[], PORTs:[]};
 
 function shuffle(o){
     for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
@@ -71,7 +71,11 @@ var decodeResponse = function(strmsg) {
     var arrmsg = strmsg.split(" ");
     var dict = {};
     dict['type'] = arrmsg[1];
-    dict['ID'] = parseInt(arrmsg[2], 10);
+
+    // JOIN does not have a ID
+    if(dict.type != "JOIN")
+        dict['ID'] = parseInt(arrmsg[2], 10);
+
     if(dict.type == "REGOK"){
         if( dict.ID >= 1 && dict.ID <= 9995){
             var IPs = [];
@@ -86,6 +90,10 @@ var decodeResponse = function(strmsg) {
             dict['port'] = ports;
             dict['userNames'] = userNames;
         }
+    }
+    else if(dict.type == "JOIN"){
+        dict['IP'] = arrmsg[2];
+        dict['port'] = arrmsg[3];
     }
     else if(dict.type == "SEROK"){
 
@@ -131,6 +139,15 @@ var encodeMessage = function(type, IP, port, arg1, arg2){
 
 console.log("Node started at " + HOST + ':' + PORT);
 
+
+var addToRT = function (ip, port) {
+    ROUTINGTABLE['IPs'].push(ip);
+    ROUTINGTABLE['PORTs'].push(port);
+}
+
+var search = function (term) {
+
+}
 /////////////// servers ///////////////
 // TCP Server
 TCP.createServer(function(sock) {
@@ -141,6 +158,18 @@ TCP.createServer(function(sock) {
 
         if(cmd.indexOf("DEBUG P RT") > -1){
             console.log(ROUTINGTABLE);
+        }
+        if(cmd.indexOf("DEBUG JOIN") > -1){
+            console.log(ROUTINGTABLE);
+            var splstr = cmd.split(" ");
+            connect(splstr[2], parseInt(splstr[3]));
+        }
+        if(cmd.indexOf("DEBUG P F") > -1){
+            console.log(nodeFiles);
+        }
+        if(cmd.indexOf("SEARCH ") > -1){
+            var searchTerms = cmd.split(" ");
+            search(searchTerms[1]);
         }
         sock.write('got that too');
         //sendTCPmessage(TCP, sock.remoteAddress, sock.remotePort, 'rogger that too');
@@ -156,8 +185,11 @@ UDP.on('listening', function () {
 });
 UDP.on('message', function (message, remote) {
     console.log(remote.address + ':' + remote.port +':UDP>>' + message);
-    sendUDPmessage(UDP, 'roger that UDP', remote.address, remote.port);
-
+    var cmd = String(message);
+    var response = decodeResponse(cmd);
+    if(response.type === 'JOIN')    addToRT(response.IP, response.port);
+    if(response.type === 'SER')
+    console.log(response);
 });
 UDP.bind(PORT, HOST);
 /////////////// servers ///////////////
@@ -187,11 +219,40 @@ var sendUDPmessage = function (UDPcon, text, sendUDPIP, sendUDPPort) {
 //    console.log(String(data));
 //});
 
+var connect = function (ip, port) {
+    var cmd = encodeMessage('JOIN', HOST, PORT);
+    sendUDPmessage(UDP, cmd, ip, port);
+}
+
+var shuffle = function(obj1, obj2) {
+    var l = obj1.length,
+        i = 0,
+        rnd,
+        tmp1,
+        tmp2;
+
+    while (i < l) {
+        rnd = Math.floor(Math.random() * i);
+        tmp1 = obj1[i];
+        tmp2 = obj2[i];
+        obj1[i] = obj1[rnd];
+        obj2[i] = obj2[rnd];
+        obj1[rnd] = tmp1;
+        obj2[rnd] = tmp2;
+        i += 1;
+    }
+}
+
 var register = function(ip, port){
     var cmd = encodeMessage('REG', HOST, PORT, USERNAME);
     sendTCPmessage(config.bootstrapIP, config.bootstrapPORT, cmd, function(err, data){
        var response = decodeResponse(String(data));
-        console.log(response);
+        ROUTINGTABLE['IPs'] = response.IPs == null ? [] : response.IPs;
+        ROUTINGTABLE['PORTs'] = response.port == null ? [] : response.port;
+        shuffle(ROUTINGTABLE['IPs'], ROUTINGTABLE['PORTs']);
+        ROUTINGTABLE['IPs'].forEach(function (elem, idx) {
+            if(idx < 2) connect(elem, ROUTINGTABLE['PORTs'][idx]);
+        });
     });
 }
 
