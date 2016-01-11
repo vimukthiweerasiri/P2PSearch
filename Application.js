@@ -6,6 +6,7 @@ var UDP = require('dgram').createSocket('udp4');
 var HOST = '127.0.0.1';
 var PORT = parseInt(process.argv[2]);
 var USERNAME = process.argv[3];
+var DEBUGMODE = process.argv.length == 5 && process.argv[4] == '-D'; 
 var ALLFILES = config.fileNames;
 var ROUTINGTABLE = {IPs:[], PORTs:[]};
 var forwardTable = {QID: [], IP: [], PORT: []};
@@ -28,22 +29,22 @@ nodeFiles.forEach(function (elem) {
 });
 
 var printResults = function (incomingMessage, qID) {
-    console.log('--------------');
+    if(DEBUGMODE) console.log('--------------');
     console.log('\x1b[36m', incomingMessage ,'\x1b[0m');
 
-    console.log('--------------');
+    if(DEBUGMODE) console.log('--------------');
 }
 
 var handleResult = function (incomingMessage, qID) {
     var idx = forwardTable.QID.indexOf(qID);
-    console.log(forwardTable);
-    console.log(qID);
+    if(DEBUGMODE) console.log(forwardTable);
+    if(DEBUGMODE) console.log(qID);
 
-    console.log('RESULT to', idx, forwardTable.IP[idx], forwardTable.PORT[idx]);
+    if(DEBUGMODE) console.log('RESULT to', idx, forwardTable.IP[idx], forwardTable.PORT[idx]);
     if(forwardTable.PORT[idx] == -1){
         printResults(incomingMessage, qID);
     } else{
-        console.log('FORWARDING to', forwardTable.IP[idx], forwardTable.PORT[idx]);
+        if(DEBUGMODE) console.log('FORWARDING to', forwardTable.IP[idx], forwardTable.PORT[idx]);
         sendUDPmessage(UDP, incomingMessage, forwardTable.IP[idx], forwardTable.PORT[idx]);
     }
 }
@@ -55,13 +56,13 @@ var sendResults = function (result, qID) {
 }
 
 var searchInNode = function (fileName, qID) {
-    console.log(fileMap[fileName]);
+    if(DEBUGMODE) console.log(fileMap[fileName]);
     if(fileMap[fileName] != null){
         sendResults(fileMap[fileName], qID);
-        console.log('-----------------');
-        console.log('FOUND ON', HOST, PORT);
-        console.log(fileMap[fileName]);
-        console.log('-----------------');
+        if(DEBUGMODE) console.log('-----------------');
+        if(DEBUGMODE) console.log('FOUND ON', HOST, PORT);
+        if(DEBUGMODE) console.log(fileMap[fileName]);
+        if(DEBUGMODE) console.log('-----------------');
     }
 }
 
@@ -77,9 +78,9 @@ var addToRT = function (ip, port) {
 var askNeighbours = function (qID, fileName) {
     countDONE[qID] = ROUTINGTABLE['PORTs'].length;
     var currentRT = queryRT[qID];
-    console.log('sendig table', currentRT);
+    if(DEBUGMODE) console.log('sendig table', currentRT);
     currentRT['IPs'].forEach(function (elem, index) {
-        console.log('SER', elem, currentRT['PORTs'][index], fileName, qID.toString());
+        if(DEBUGMODE) console.log('SER', elem, currentRT['PORTs'][index], fileName, qID.toString());
         var cmd = codec.encodeMessage('SER', HOST, PORT, fileName, qID.toString());
         sendUDPmessage(UDP, cmd, elem, currentRT['PORTs'][index]);
     });
@@ -101,15 +102,15 @@ var handleDone = function (qID) {
     var count = countDONE[qID];
     countDONE[qID] = count - 1;
     var idx = forwardTable.QID.indexOf(qID);
-    console.log('GOT DOME', forwardTable.PORT[idx], countDONE[qID]);
+    if(DEBUGMODE) console.log('GOT DOME', forwardTable.PORT[idx], countDONE[qID]);
 
     if(countDONE[qID] == 0){
         if(forwardTable.PORT[idx] != -1){
-            console.log('DONE SENT BY COLLECTING', forwardTable.IP[idx], forwardTable.PORT[idx]);
+            if(DEBUGMODE) console.log('DONE SENT BY COLLECTING', forwardTable.IP[idx], forwardTable.PORT[idx]);
             var cmd = codec.encodeMessage('DONE', forwardTable.IP[idx], forwardTable.PORT[idx], qID);
             sendUDPmessage(UDP, cmd, forwardTable.IP[idx], forwardTable.PORT[idx]);
         } else {
-            console.log('\x1b[36m', 'SEARCHING IS DONE BABY' ,'\x1b[0m');
+            console.log('\x1b[36m', 'SEARCHING IS FINISHED' ,'\x1b[0m');
         }
 
     }
@@ -120,7 +121,7 @@ var handleSearch = function (ip, port, fileName, qID) {
     // if the query has already come
 
     if(forwardTable.QID.indexOf(qID) > -1) {
-        console.log('DONE SENT BY BUSY', ip, port, qID);
+        if(DEBUGMODE) console.log('DONE SENT BY BUSY', ip, port, qID);
         var cmd = codec.encodeMessage('DONE', ip, port, qID);
         sendUDPmessage(UDP, cmd, ip, port);
         return;
@@ -154,7 +155,7 @@ var handleSearch = function (ip, port, fileName, qID) {
 // TCP Server
 TCP.createServer(function(sock) {
     sock.on('data', function(message) {
-        console.log(sock.remoteAddress +':'+ sock.remotePort + ':TCP>> ' + message);
+        if(DEBUGMODE) console.log(sock.remoteAddress +':'+ sock.remotePort + ':TCP>> ' + message);
         var cmd = String(message);
         // taking substring here than matching to avoid C-R etc;
 
@@ -184,28 +185,28 @@ TCP.createServer(function(sock) {
             console.log('searching for: ' + searchTerms[1]);
             initSearch(searchTerms[1].toLocaleLowerCase().trim());
         }
-        sock.write('got that too');
+        sock.write('ack\n');
         //sendTCPmessage(TCP, sock.remoteAddress, sock.remotePort, 'rogger that too');
     });
 }).listen(PORT, HOST);
 
-console.log('Server listening on ' + HOST +':'+ PORT);
+if(DEBUGMODE) console.log('Server listening on ' + HOST +':'+ PORT);
 
 // UDP Server
 UDP.on('listening', function () {
     var address = UDP.address();
-    console.log('UDP Server listening on ' + address.address + ":" + address.port);
+    if(DEBUGMODE) console.log('UDP Server listening on ' + address.address + ":" + address.port);
 });
 UDP.on('message', function (message, remote) {
-    console.log(remote.address + ':' + remote.port +':UDP>>' + message);
+    if(DEBUGMODE) console.log(remote.address + ':' + remote.port +':UDP>>' + message);
     var cmd = String(message);
     var response = codec.decodeResponse(cmd);
     if(response.type === 'JOIN')    {
         addToRT(response.IP, response.port);
-        console.log('routing table', ROUTINGTABLE);
+        if(DEBUGMODE) console.log('routing table', ROUTINGTABLE);
     }
     if(response.type === 'SER'){
-        console.log(response);
+        if(DEBUGMODE) console.log(response);
         handleSearch(response.IP, response.PORT, response.fileName, response.qID);
     }
     if(response.type === 'DONE'){
@@ -224,7 +225,7 @@ var sendTCPmessage = function(sendTCPIP, sendTCPPORT, message, callback){
         TCPConnection.write(message);
     });
     TCPConnection.on('data', function(data) {
-        console.log(sendTCPIP + ':' + sendTCPPORT + ':TCP>> ' + data);
+        if(DEBUGMODE) console.log(sendTCPIP + ':' + sendTCPPORT + ':TCP>> ' + data);
         callback(null, data);
         TCPConnection.destroy();
     });
@@ -234,7 +235,7 @@ var sendUDPmessage = function (UDPcon, text, sendUDPIP, sendUDPPort) {
     var message = new Buffer(text);
     UDPcon.send(message, 0, message.length, sendUDPPort, sendUDPIP, function(err, bytes) {
         if (err) throw err;
-        console.log('UDP message sent to ' + sendUDPIP +':'+ sendUDPPort);
+        if(DEBUGMODE) console.log('UDP message sent to ' + sendUDPIP +':'+ sendUDPPort);
         //UDPcon.close();
     });
 };
@@ -257,4 +258,4 @@ var register = function(ip, port){
     });
 }
 
-//register(HOST, PORT);
+register(HOST, PORT);
