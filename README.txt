@@ -16,7 +16,16 @@ cd BootStrapServer && gcc P2PRegistry.c && ./a.out 12345
 
 --Creating Nodes--
 
-node Application.js <port number> <user name> <-D>
+node Application.js <ip> <port number> <user name> <communication protocol> <-D> <external communication port>
+
+arg                          | example
+<ip>						 |  127.0.0.1
+<port number>                |	5001
+<user name>                  |  vimukthi
+<communication protocol>     |  -U for udp or -W for web services
+<external communication port>|  9876. This is optional
+<-D>                         |  enable dubug messages. This is optional
+
 
 the -D arg is optional, it prints the debug messages
 
@@ -26,6 +35,11 @@ Connect to the node with netcat first
 nc <node IP> <node PORT> then type,
 SEARCH <file name>
 this will give the results
+
+--Leave Node--
+Connect to the node with netcat first
+nc <node IP> <node PORT> then type,
+LEAVE
 
 --print properties of the node--
 after connecting to the node with netcat, send
