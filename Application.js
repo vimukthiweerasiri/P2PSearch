@@ -6,12 +6,21 @@ var UDP = require('dgram').createSocket('udp4');
 var HOST = '127.0.0.1';
 var PORT = parseInt(process.argv[2]);
 var USERNAME = process.argv[3];
-var DEBUGMODE = process.argv.length == 5 && process.argv[4] == '-D'; 
+var ISUDP = process.argv.length == 5 && process.argv[4] == '-U';
+var DEBUGMODE = process.argv.length == 6 && process.argv[5] == '-D';
+var DEBUGPORT = process.argv.length == 7 ? Number(process.argv[6]) : 0;
 var ALLFILES = config.fileNames;
 var ROUTINGTABLE = {IPs:[], PORTs:[]};
 var forwardTable = {QID: [], IP: [], PORT: []};
 var queryRT = {};
 var countDONE = {};
+
+var express = require('express');
+var APP = express();
+var request = require('request');
+
+
+
 
 
 var fileCount = Math.round(Math.random() * (config.maxFilesPerNode - config.minFilesPerNode) + config.minFilesPerNode);
@@ -149,58 +158,9 @@ var handleSearch = function (ip, port, fileName, qID) {
     askNeighbours(qID, fileName);
 }
 
-
-
-/////////////// servers ///////////////
-// TCP Server
-TCP.createServer(function(sock) {
-    sock.on('data', function(message) {
-        if(DEBUGMODE) console.log(sock.remoteAddress +':'+ sock.remotePort + ':TCP>> ' + message);
-        var cmd = String(message);
-        // taking substring here than matching to avoid C-R etc;
-
-        if(cmd.indexOf("DALL") > -1){
-            console.log('ROUTINGTABLE', ROUTINGTABLE);
-            console.log('nodeFiles', nodeFiles);
-            console.log('forwardTable', forwardTable);
-            console.log('queryRT', queryRT);
-            console.log('fileMap', fileMap);
-        }
-
-        if(cmd.indexOf("DEBUG P RT") > -1){
-            console.log(ROUTINGTABLE);
-        }
-        if(cmd.indexOf("DEBUG JOIN") > -1){
-            console.log(ROUTINGTABLE);
-            var splstr = cmd.split(" ");
-            addToRT(splstr[2], parseInt(splstr[3]));
-            console.log('routing table', ROUTINGTABLE);
-            connect(splstr[2], parseInt(splstr[3]));
-        }
-        if(cmd.indexOf("DEBUG P F") > -1){
-            console.log(nodeFiles);
-        }
-        if(cmd.indexOf("SEARCH ") > -1){
-            var searchTerms = cmd.split(" ");
-            console.log('searching for: ' + searchTerms[1]);
-            initSearch(searchTerms[1].toLocaleLowerCase().trim());
-        }
-        sock.write('ack\n');
-        //sendTCPmessage(TCP, sock.remoteAddress, sock.remotePort, 'rogger that too');
-    });
-}).listen(PORT, HOST);
-
-if(DEBUGMODE) console.log('Server listening on ' + HOST +':'+ PORT);
-
-// UDP Server
-UDP.on('listening', function () {
-    var address = UDP.address();
-    if(DEBUGMODE) console.log('UDP Server listening on ' + address.address + ":" + address.port);
-});
-UDP.on('message', function (message, remote) {
-    if(DEBUGMODE) console.log(remote.address + ':' + remote.port +':UDP>>' + message);
+var handleIncomingMessage = function (message) {
     var cmd = String(message);
-    var response = codec.decodeResponse(cmd);
+    var response = ISUDP ? codec.decodeResponse(cmd) : codec.decodeResponse(cmd, "-");
     if(response.type === 'JOIN')    {
         addToRT(response.IP, response.port);
         if(DEBUGMODE) console.log('routing table', ROUTINGTABLE);
@@ -215,8 +175,78 @@ UDP.on('message', function (message, remote) {
     if(response.type === 'RESULT'){
         handleResult(cmd, response.qID);
     }
-});
-UDP.bind(PORT, HOST);
+}
+
+
+/////////////// servers ///////////////
+// TCP Server
+if(DEBUGPORT > 0){
+    TCP.createServer(function(sock) {
+        sock.on('data', function(message) {
+            if(DEBUGMODE) console.log(sock.remoteAddress +':'+ sock.remotePort + ':TCP_exchange_server>> ' + message);
+            var cmd = String(message);
+            // taking substring here than matching to avoid C-R etc;
+
+            if(cmd.indexOf("DALL") > -1){
+                console.log('ROUTINGTABLE', ROUTINGTABLE);
+                console.log('nodeFiles', nodeFiles);
+                console.log('nodeFiles', nodeFiles);
+                console.log('forwardTable', forwardTable);
+                console.log('queryRT', queryRT);
+                console.log('fileMap', fileMap);
+            }
+
+            if(cmd.indexOf("DEBUG P RT") > -1){
+                console.log(ROUTINGTABLE);
+            }
+            if(cmd.indexOf("DEBUG JOIN") > -1){
+                console.log(ROUTINGTABLE);
+                var splstr = cmd.split(" ");
+                addToRT(splstr[2], parseInt(splstr[3]));
+                console.log('routing table', ROUTINGTABLE);
+                connect(splstr[2], parseInt(splstr[3]));
+            }
+            if(cmd.indexOf("DEBUG P F") > -1){
+                console.log(nodeFiles);
+            }
+            if(cmd.indexOf("SEARCH ") > -1){
+                var searchTerms = cmd.split(" ");
+                console.log('searching for: ' + searchTerms[1]);
+                initSearch(searchTerms[1].toLocaleLowerCase().trim());
+            }
+            sock.write('ack\n');
+            //sendTCPmessage(TCP, sock.remoteAddress, sock.remotePort, 'rogger that too');
+        });
+    }).listen(DEBUGPORT, HOST);
+    if(DEBUGMODE) console.log('Server listening on ' + HOST +':'+ DEBUGPORT);
+}
+
+if(ISUDP){
+    // UDP Server
+    UDP.on('listening', function () {
+        var address = UDP.address();
+        if(DEBUGMODE) console.log('UDP Server listening on ' + address.address + ":" + address.port);
+    });
+
+    UDP.on('message', function (message, remote) {
+        if(DEBUGMODE) console.log(remote.address + ':' + remote.port +':UDP>>' + message);
+        handleIncomingMessage(message);
+
+    });
+    UDP.bind(PORT, HOST);
+} else {
+    APP.get('/:data', function (req, res) {
+        console.log('incoming HTTP:>', req.params.data)
+        console.log('incoming HTTP:>', req.params)
+        handleIncomingMessage(req.params.data);
+    });
+
+    APP.listen(PORT, function () {
+        console.log('Example APP listening on port '.concat(PORT));
+
+    });
+}
+
 /////////////// servers ///////////////
 
 var sendTCPmessage = function(sendTCPIP, sendTCPPORT, message, callback){
@@ -232,12 +262,20 @@ var sendTCPmessage = function(sendTCPIP, sendTCPPORT, message, callback){
 };
 
 var sendUDPmessage = function (UDPcon, text, sendUDPIP, sendUDPPort) {
-    var message = new Buffer(text);
-    UDPcon.send(message, 0, message.length, sendUDPPort, sendUDPIP, function(err, bytes) {
-        if (err) throw err;
-        if(DEBUGMODE) console.log('UDP message sent to ' + sendUDPIP +':'+ sendUDPPort);
-        //UDPcon.close();
-    });
+    if(ISUDP){
+        var message = new Buffer(text);
+        UDPcon.send(message, 0, message.length, sendUDPPort, sendUDPIP, function(err, bytes) {
+            if (err) throw err;
+            if(DEBUGMODE) console.log('UDP message sent to ' + sendUDPIP +':'+ sendUDPPort);
+            //UDPcon.close();
+        });
+    } else{
+        var message = text.replace(/\s/g, "-");
+        console.log('sending HTTP:=>', 'http://127.0.0.1:'.concat(PORT).concat("/").concat(message));
+        request('http://127.0.0.1:'.concat(sendUDPPort).concat("/").concat(message), function (error, response, body) {
+        });
+
+    }
 };
 
 var connect = function (ip, port) {

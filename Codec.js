@@ -1,5 +1,6 @@
-var decodeResponse = function(strmsg) {
-    var arrmsg = strmsg.split(" ");
+var decodeResponse = function(strmsg, splitChar) {
+    if(typeof splitChar === "undefined") splitChar = " ";
+    var arrmsg = strmsg.split(splitChar);
     var dict = {};
     dict['type'] = arrmsg[1];
 
@@ -79,6 +80,7 @@ var encodeMessage = function(type, IP, port, arg1, arg2){
     var ret = strmsg.concat(space, msg);
     return ret;
 }
+
 
 exports.decodeResponse = decodeResponse;
 exports.encodeMessage = encodeMessage;
