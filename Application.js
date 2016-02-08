@@ -6,9 +6,9 @@ var UDP = require('dgram').createSocket('udp4');
 var HOST = '127.0.0.1';
 var PORT = parseInt(process.argv[2]);
 var USERNAME = process.argv[3];
-var ISUDP = process.argv.length == 5 && process.argv[4] == '-U';
-var DEBUGMODE = process.argv.length == 6 && process.argv[5] == '-D';
-var DEBUGPORT = process.argv.length == 7 ? Number(process.argv[6]) : 0;
+var ISUDP = process.argv.length >= 5 && process.argv[4] == '-U';
+var DEBUGMODE = process.argv.length >= 6 && process.argv[5] == '-D';
+var DEBUGPORT = process.argv.length >= 7 ? Number(process.argv[6]) : 0;
 var ALLFILES = config.fileNames;
 var ROUTINGTABLE = {IPs:[], PORTs:[]};
 var forwardTable = {QID: [], IP: [], PORT: []};
@@ -18,9 +18,6 @@ var countDONE = {};
 var express = require('express');
 var APP = express();
 var request = require('request');
-
-
-
 
 
 var fileCount = Math.round(Math.random() * (config.maxFilesPerNode - config.minFilesPerNode) + config.minFilesPerNode);
@@ -158,6 +155,15 @@ var handleSearch = function (ip, port, fileName, qID) {
     askNeighbours(qID, fileName);
 }
 
+var removeFromRT = function (ip, port) {
+    var removingID = -1;
+    ROUTINGTABLE['IPs'].forEach(function (elem, idx) {
+        if(elem == ip && ROUTINGTABLE['PORTs'][idx] == port) removingID = idx;
+    });
+    ROUTINGTABLE['IPs'].splice(removingID, 1);
+    ROUTINGTABLE['PORTs'].splice(removingID, 1);
+}
+
 var handleIncomingMessage = function (message) {
     var cmd = String(message);
     var response = ISUDP ? codec.decodeResponse(cmd) : codec.decodeResponse(cmd, "-");
@@ -175,8 +181,32 @@ var handleIncomingMessage = function (message) {
     if(response.type === 'RESULT'){
         handleResult(cmd, response.qID);
     }
+    if(response.type === 'LEAVE'){
+        removeFromRT(response.IP, response.PORT);
+    }
 }
 
+var unregister = function (host, port, username) {
+    var unregCMD = codec.encodeMessage('UNREG', host, port, username);
+    sendTCPmessage(config.bootstrapIP, config.bootstrapPORT, unregCMD, function(err, data){
+        console.log(data);
+    });
+}
+
+var leaveNode = function (host, port) {
+    var leaveCMD = codec.encodeMessage('LEAVE', HOST, PORT);
+    sendUDPmessage(UDP, leaveCMD, host, port);
+}
+
+var leave = function (host, port, username) {
+    var leaveCMD = codec.encodeMessage('UNREG', host, port, username);
+    sendTCPmessage(config.bootstrapIP, config.bootstrapPORT, leaveCMD, function(err, data){
+        console.log(String(data));
+    });
+    ROUTINGTABLE['IPs'].forEach(function (elem, idx) {
+        leaveNode(elem, ROUTINGTABLE['PORTs'][idx]);
+    });
+}
 
 /////////////// servers ///////////////
 // TCP Server
@@ -213,6 +243,9 @@ if(DEBUGPORT > 0){
                 var searchTerms = cmd.split(" ");
                 console.log('searching for: ' + searchTerms[1]);
                 initSearch(searchTerms[1].toLocaleLowerCase().trim());
+            }
+            if(cmd.indexOf("LEAVE") > -1){
+                leave(HOST, PORT, USERNAME);
             }
             sock.write('ack\n');
             //sendTCPmessage(TCP, sock.remoteAddress, sock.remotePort, 'rogger that too');
