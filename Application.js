@@ -134,7 +134,7 @@ var handleSearch = function (ip, port, fileName, qID) {
     }
 
     // don't check in predecessor
-    var idxRT;
+    var idxRT = -1;
     queryRT[qID] = ROUTINGTABLE;
     var currentRT = queryRT[qID];
     currentRT['IPs'].forEach(function (elem, index) {
@@ -142,8 +142,10 @@ var handleSearch = function (ip, port, fileName, qID) {
             idxRT = index;
         }
     });
-    currentRT['IPs'].splice(idxRT, 1);
-    currentRT['PORTs'].splice(idxRT, 1);
+    if(idxRT != -1){
+        currentRT['IPs'].splice(idxRT, 1);
+        currentRT['PORTs'].splice(idxRT, 1);
+    }
 
     // update the forward table
     forwardTable.QID.push(qID);
@@ -160,8 +162,10 @@ var removeFromRT = function (ip, port) {
     ROUTINGTABLE['IPs'].forEach(function (elem, idx) {
         if(elem == ip && ROUTINGTABLE['PORTs'][idx] == port) removingID = idx;
     });
-    ROUTINGTABLE['IPs'].splice(removingID, 1);
-    ROUTINGTABLE['PORTs'].splice(removingID, 1);
+    if(removingID != -1){
+        ROUTINGTABLE['IPs'].splice(removingID, 1);
+        ROUTINGTABLE['PORTs'].splice(removingID, 1);
+    }
 }
 
 var handleIncomingMessage = function (message) {
