@@ -159,7 +159,7 @@ var handleSearch = function (ip, port, fileName, qID, hops) {
     queryRT[qID] = ROUTINGTABLE;
     var currentRT = queryRT[qID];
     currentRT['IPs'].forEach(function (elem, index) {
-        if(elem === ip && currentRT['PORTs'][index] === port){
+        if(elem == ip && currentRT['PORTs'][index] == port){
             idxRT = index;
         }
     });
@@ -167,7 +167,6 @@ var handleSearch = function (ip, port, fileName, qID, hops) {
         currentRT['IPs'].splice(idxRT, 1);
         currentRT['PORTs'].splice(idxRT, 1);
     }
-
     // update the forward table
     forwardTable.QID.push(qID);
     forwardTable.IP.push(ip);
