@@ -35,11 +35,25 @@ nodeFiles.forEach(function (elem) {
     }
 });
 
+console.log('Files in this node', nodeFiles);
+
 var printResults = function (incomingMessage, qID) {
     if(DEBUGMODE) console.log('--------------');
-    // beuatify the message here
-    console.log('\x1b[36m', incomingMessage ,'\x1b[0m');
-    console.log('\x1b[36m','time:',new Date() - SEARCH_START_TIME ,'\x1b[0m');
+    var answer;
+    if(incomingMessage.indexOf('-') === -1){
+        answer = codec.decodeResponse(incomingMessage);
+    } else{
+        answer = codec.decodeResponse(incomingMessage, "-");
+    }
+
+    var display_IP = answer['IP'];
+    var display_answer = (answer['result']).replace("_", " ");
+    var display_port = answer['PORT'];
+    var display_hops = answer['hops'];
+    var display_time = new Date() - SEARCH_START_TIME;
+    console.log('\x1b[36m','"'.concat(display_answer).concat('"'),'is found on', display_IP.concat(':').concat(display_port), 'in', String(display_time).concat('ms'), 'by ', display_hops, 'hops' ,'\x1b[0m');
+
+
 
 
     if(DEBUGMODE) console.log('--------------');
@@ -251,10 +265,14 @@ if(DEBUGPORT > 0){
                 console.log(nodeFiles);
             }
             if(cmd.indexOf("SEARCH ") > -1){
+                cmd = cmd.trim();
                 var searchTerms = cmd.split(" ");
-                console.log('searching for: ' + searchTerms[1]);
+                var sestr = "";
+                for(var i = 1; i < searchTerms.length; i++) sestr = sestr.concat(searchTerms[i]).concat(" ");
+                sestr = sestr.trim();
+                console.log('searching for: ' + sestr);
                 SEARCH_START_TIME = new Date();
-                initSearch(searchTerms[1].toLocaleLowerCase().trim());
+                initSearch(sestr.toLocaleLowerCase().trim());
             }
             if(cmd.indexOf("LEAVE") > -1){
                 leave(HOST, PORT, USERNAME);
@@ -281,13 +299,13 @@ if(ISUDP){
     UDP.bind(PORT, HOST);
 } else {
     APP.get('/:data', function (req, res) {
-        console.log('incoming HTTP:>', req.params.data)
-        console.log('incoming HTTP:>', req.params)
+        if(DEBUGMODE) console.log('incoming HTTP:>', req.params.data)
+        if(DEBUGMODE) console.log('incoming HTTP:>', req.params)
         handleIncomingMessage(req.params.data);
     });
 
     APP.listen(PORT, function () {
-        console.log('Example APP listening on port '.concat(PORT));
+        console.log('HTTP server listening on port '.concat(PORT));
 
     });
 }
@@ -316,7 +334,7 @@ var sendUDPmessage = function (UDPcon, text, sendUDPIP, sendUDPPort) {
         });
     } else{
         var message = text.replace(/\s/g, "-");
-        console.log('sending HTTP:=>', 'http://'.concat(HOST).concat(':').concat(sendUDPPort).concat("/").concat(message));
+        if(DEBUGMODE) console.log('sending HTTP:=>', 'http://'.concat(HOST).concat(':').concat(sendUDPPort).concat("/").concat(message));
         request('http://'.concat(HOST).concat(':').concat(sendUDPPort).concat("/").concat(message), function (error, response, body) {
         });
 

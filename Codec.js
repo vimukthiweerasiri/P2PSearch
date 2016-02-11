@@ -43,7 +43,8 @@ var decodeResponse = function(strmsg, splitChar) {
         dict['IP'] = arrmsg[2];
         dict['PORT'] = parseInt(arrmsg[3]);
         dict['qID'] = parseInt(arrmsg[4]);
-        dict['result'] = parseInt(arrmsg[5]);
+        dict['result'] = arrmsg[5];
+        dict['hops'] = parseInt(arrmsg[6]);
     } else if(dict.type == "LEAVE"){
         dict['IP'] = arrmsg[2];
         dict['PORT'] = parseInt(arrmsg[3]);
