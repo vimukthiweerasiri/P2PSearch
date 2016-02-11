@@ -101,7 +101,7 @@ var addToRT = function (ip, port) {
 }
 
 var askNeighbours = function (qID, fileName, hops) {
-    countDONE[qID] = ROUTINGTABLE['PORTs'].length;
+    countDONE[qID] = queryRT[qID].length;
     var currentRT = queryRT[qID];
     if(DEBUGMODE) console.log('sendig table', currentRT);
     currentRT['IPs'].forEach(function (elem, index) {
@@ -131,6 +131,7 @@ var handleDone = function (qID) {
     var idx = forwardTable.QID.indexOf(qID);
     if(DEBUGMODE) console.log('GOT DOME', forwardTable.PORT[idx], countDONE[qID]);
 
+    console.log(countDONE[qID]);
     if(countDONE[qID] == 0){
         if(forwardTable.PORT[idx] != -1){
             if(DEBUGMODE) console.log('DONE SENT BY COLLECTING', forwardTable.IP[idx], forwardTable.PORT[idx]);
@@ -139,7 +140,6 @@ var handleDone = function (qID) {
         } else {
             console.log('\x1b[36m', 'SEARCHING IS FINISHED' ,'\x1b[0m');
         }
-
     }
 
 }
@@ -348,12 +348,26 @@ var connect = function (ip, port) {
 var register = function(ip, port){
     var cmd = codec.encodeMessage('REG', HOST, PORT, USERNAME);
     sendTCPmessage(config.bootstrapIP, config.bootstrapPORT, cmd, function(err, data){
-       var response = codec.decodeResponse(String(data));
-        ROUTINGTABLE['IPs'] = response.IPs == null ? [] : response.IPs;
-        ROUTINGTABLE['PORTs'] = response.port == null ? [] : response.port;
-        misc.shuffle(ROUTINGTABLE['IPs'], ROUTINGTABLE['PORTs']);
+        var response = codec.decodeResponse(String(data));
+        var _ips = response.IPs == null ? [] : response.IPs;
+        var _ports = response.port == null ? [] : response.port;
+
+        misc.shuffle(_ips, _ports);
+
+        if (_ips.length > 1) {
+            ROUTINGTABLE['IPs'].push(_ips[0]);
+            ROUTINGTABLE['IPs'].push(_ips[1]);
+            ROUTINGTABLE['PORTs'].push(_ports[0]);
+            ROUTINGTABLE['PORTs'].push(_ports[1]);
+        } else if (_ips.length == 1) {
+            ROUTINGTABLE['IPs'].push(_ips[0]);
+            ROUTINGTABLE['PORTs'].push(_ports[0]);
+        }
+
+        console.log(ROUTINGTABLE['IPs'], ROUTINGTABLE['PORTs']);
+
         ROUTINGTABLE['IPs'].forEach(function (elem, idx) {
-            if(idx < 2) connect(elem, ROUTINGTABLE['PORTs'][idx]);
+            connect(elem, ROUTINGTABLE['PORTs'][idx]);
         });
     });
 }
