@@ -14,6 +14,7 @@ var ROUTINGTABLE = {IPs:[], PORTs:[]};
 var forwardTable = {QID: [], IP: [], PORT: []};
 var queryRT = {};
 var countDONE = {};
+var SEARCH_START_TIME = new Date();
 
 var express = require('express');
 var APP = express();
@@ -36,7 +37,10 @@ nodeFiles.forEach(function (elem) {
 
 var printResults = function (incomingMessage, qID) {
     if(DEBUGMODE) console.log('--------------');
+    // beuatify the message here
     console.log('\x1b[36m', incomingMessage ,'\x1b[0m');
+    console.log('\x1b[36m','time:',new Date() - SEARCH_START_TIME ,'\x1b[0m');
+
 
     if(DEBUGMODE) console.log('--------------');
 }
@@ -246,6 +250,7 @@ if(DEBUGPORT > 0){
             if(cmd.indexOf("SEARCH ") > -1){
                 var searchTerms = cmd.split(" ");
                 console.log('searching for: ' + searchTerms[1]);
+                SEARCH_START_TIME = new Date();
                 initSearch(searchTerms[1].toLocaleLowerCase().trim());
             }
             if(cmd.indexOf("LEAVE") > -1){
@@ -308,8 +313,8 @@ var sendUDPmessage = function (UDPcon, text, sendUDPIP, sendUDPPort) {
         });
     } else{
         var message = text.replace(/\s/g, "-");
-        console.log('sending HTTP:=>', 'http://127.0.0.1:'.concat(PORT).concat("/").concat(message));
-        request('http://127.0.0.1:'.concat(sendUDPPort).concat("/").concat(message), function (error, response, body) {
+        console.log('sending HTTP:=>', 'http://'.concat(HOST).concat(':').concat(sendUDPPort).concat("/").concat(message));
+        request('http://'.concat(HOST).concat(':').concat(sendUDPPort).concat("/").concat(message), function (error, response, body) {
         });
 
     }
