@@ -34,6 +34,7 @@ var decodeResponse = function(strmsg, splitChar) {
         dict['PORT'] = parseInt(arrmsg[3]);
         dict['fileName'] = arrmsg[4];
         dict['qID'] = parseInt(arrmsg[5]);
+        dict['hops'] = parseInt(arrmsg[6]);
     } else if(dict.type == "DONE"){
         dict['IPs'] = arrmsg[2];
         dict['port'] = parseInt(arrmsg[3]);

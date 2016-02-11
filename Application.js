@@ -59,16 +59,17 @@ var handleResult = function (incomingMessage, qID) {
     }
 }
 
-var sendResults = function (result, qID) {
+var sendResults = function (result, qID, hops) {
     var noSpace = result.trim().replace(/\s+/g, '_');
     var cmd = codec.encodeMessage('RESULT', HOST, PORT, qID, noSpace);
+    cmd = cmd.concat(' ').concat(hops);
     handleResult(cmd, qID)
 }
 
-var searchInNode = function (fileName, qID) {
+var searchInNode = function (fileName, qID, hops) {
     if(DEBUGMODE) console.log(fileMap[fileName]);
     if(fileMap[fileName] != null){
-        sendResults(fileMap[fileName], qID);
+        sendResults(fileMap[fileName], qID, hops);
         if(DEBUGMODE) console.log('-----------------');
         if(DEBUGMODE) console.log('FOUND ON', HOST, PORT);
         if(DEBUGMODE) console.log(fileMap[fileName]);
@@ -85,13 +86,15 @@ var addToRT = function (ip, port) {
     ROUTINGTABLE['PORTs'].push(port);
 }
 
-var askNeighbours = function (qID, fileName) {
+var askNeighbours = function (qID, fileName, hops) {
     countDONE[qID] = ROUTINGTABLE['PORTs'].length;
     var currentRT = queryRT[qID];
     if(DEBUGMODE) console.log('sendig table', currentRT);
     currentRT['IPs'].forEach(function (elem, index) {
         if(DEBUGMODE) console.log('SER', elem, currentRT['PORTs'][index], fileName, qID.toString());
+        if(!hops) hops = 1;
         var cmd = codec.encodeMessage('SER', HOST, PORT, fileName, qID.toString());
+        cmd = cmd.concat(' ').concat(hops + 1);
         sendUDPmessage(UDP, cmd, elem, currentRT['PORTs'][index]);
     });
 }
@@ -104,8 +107,8 @@ var initSearch = function (term) {
 
     queryRT[qID] = ROUTINGTABLE;
 
-    searchInNode(term, qID);
-    askNeighbours(qID, term);
+    searchInNode(term, qID, 0);
+    askNeighbours(qID, term, 0);
 }
 
 var handleDone = function (qID) {
@@ -127,7 +130,7 @@ var handleDone = function (qID) {
 
 }
 
-var handleSearch = function (ip, port, fileName, qID) {
+var handleSearch = function (ip, port, fileName, qID, hops) {
     // if the query has already come
 
     if(forwardTable.QID.indexOf(qID) > -1) {
@@ -156,9 +159,9 @@ var handleSearch = function (ip, port, fileName, qID) {
     forwardTable.IP.push(ip);
     forwardTable.PORT.push(port);
 
-    searchInNode(fileName, qID);
+    searchInNode(fileName, qID, hops);
     // ask the neighbours
-    askNeighbours(qID, fileName);
+    askNeighbours(qID, fileName, hops);
 }
 
 var removeFromRT = function (ip, port) {
@@ -181,7 +184,7 @@ var handleIncomingMessage = function (message) {
     }
     if(response.type === 'SER'){
         if(DEBUGMODE) console.log(response);
-        handleSearch(response.IP, response.PORT, response.fileName, response.qID);
+        handleSearch(response.IP, response.PORT, response.fileName, response.qID, response.hops);
     }
     if(response.type === 'DONE'){
         handleDone(response.qID);
