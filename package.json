@@ -1,0 +1,22 @@
+{
+  "name": "p2psearch",
+  "version": "1.0.0",
+  "description": "File searching distributed system",
+  "main": "Application.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vimukthiweerasiri/P2PSearch.git"
+  },
+  "author": "Vimukthi Weerasiri",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vimukthiweerasiri/P2PSearch/issues"
+  },
+  "homepage": "https://github.com/vimukthiweerasiri/P2PSearch#readme",
+  "dependencies": {
+    "express": "^4.13.4"
+  }
+}
