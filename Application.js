@@ -333,8 +333,8 @@ var sendUDPmessage = function (UDPcon, text, sendUDPIP, sendUDPPort) {
         });
     } else{
         var message = text.replace(/\s/g, "-");
-        if(DEBUGMODE) console.log('sending HTTP:=>', 'http://'.concat(HOST).concat(':').concat(sendUDPPort).concat("/").concat(message));
-        request('http://'.concat(HOST).concat(':').concat(sendUDPPort).concat("/").concat(message), function (error, response, body) {
+        if(DEBUGMODE) console.log('sending HTTP:=>', 'http://'.concat(sendUDPIP).concat(':').concat(sendUDPPort).concat("/").concat(message));
+        request('http://'.concat(sendUDPIP).concat(':').concat(sendUDPPort).concat("/").concat(message), function (error, response, body) {
         });
 
     }
@@ -364,7 +364,7 @@ var register = function(ip, port){
             ROUTINGTABLE['PORTs'].push(_ports[0]);
         }
 
-        console.log(ROUTINGTABLE['IPs'], ROUTINGTABLE['PORTs']);
+        console.log(ROUTINGTABLE);
 
         ROUTINGTABLE['IPs'].forEach(function (elem, idx) {
             connect(elem, ROUTINGTABLE['PORTs'][idx]);
